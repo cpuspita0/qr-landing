@@ -63,9 +63,10 @@
 
     <div id="msg" class="msg"></div>
 
-    <div id="qrwrap" class="qrwrap">
-      <canvas id="qrcanvas" width="240" height="240"></canvas>
+    <div id="imgwrap" class="qrwrap" style="display:none;">
+      <img id="payloadimg" alt="payload image" style="max-width:240px; border-radius:12px; display:block;" />
     </div>
+
 
     <div class="small" id="hint"></div>
 
@@ -73,9 +74,6 @@
       Admin punya kuasa.
     </div>
   </div>
-
-  <!-- QR generator library (client-side) -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 
   <script>
     // GANTI ini setelah backend Anda live:
@@ -87,6 +85,23 @@
     const elWrap = document.getElementById("qrwrap");
     const elCanvas = document.getElementById("qrcanvas");
     const elHint = document.getElementById("hint");
+    const elImgWrap = document.getElementById("imgwrap");
+    const elImg = document.getElementById("payloadimg");
+    let lastObjUrl = null;
+    
+    function hideAll() {
+      // hide QR
+      elWrap.style.display = "none";
+      const ctx = elCanvas.getContext("2d");
+      ctx.clearRect(0, 0, elCanvas.width, elCanvas.height);
+    
+      // hide IMG
+      elImgWrap.style.display = "none";
+      if (lastObjUrl) {
+        URL.revokeObjectURL(lastObjUrl);
+        lastObjUrl = null;
+      }
+    }
 
     function setMsg(text, kind) {
       elMsg.textContent = text || "";
@@ -101,38 +116,35 @@
 
     async function verifyAndRender() {
       const code = (elCode.value || "").trim();
-      hideQR();
-      elHint.textContent = "";
-      if (!code) {
-        setMsg("Kode belum diisi.", "bad");
-        return;
-      }
-
+      if (!code) { setMsg("Kode belum diisi.", "bad"); return; }
+    
       elBtn.disabled = true;
       setMsg("Memeriksa kode...", "");
+      elImgWrap.style.display = "none";
+    
       try {
-        const res = await fetch(`${API_BASE}/api/verify`, {
+        const res = await fetch(`${API_BASE}/api/image`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ code })
         });
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-
-        if (!data.ok) {
-          setMsg('Haha sorry boloo kodemu salah.', "bad");
+    
+        if (res.status === 403) {
+          setMsg('haha sorry boloo kodemu salah.', "bad");
           return;
         }
-
-        // data.qr berisi payload untuk di-encode menjadi QR
-        await QRCode.toCanvas(elCanvas, data.qr, { width: 240, margin: 2 });
-        elWrap.style.display = "block";
-        setMsg("Kode benar. QR berhasil dibuat.", "ok");
-
-        if (data.note) elHint.textContent = data.note;
-      } catch (err) {
-        setMsg("Gagal menghubungi server. " + (err?.message || String(err)), "bad");
+        if (!res.ok) {
+          setMsg(`Server error: HTTP ${res.status}`, "bad");
+          return;
+        }
+    
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        elImg.src = url;
+        elImgWrap.style.display = "block";
+        setMsg("Kode benar. QR (foto) ditampilkan.", "ok");
+      } catch (e) {
+        setMsg("Gagal menghubungi server: " + (e?.message || String(e)), "bad");
       } finally {
         elBtn.disabled = false;
       }
