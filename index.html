@@ -132,7 +132,7 @@
 
         if (data.note) elHint.textContent = data.note;
       } catch (err) {
-        setMsg("Gagal menghubungi server.", "bad");
+        setMsg("Gagal menghubungi server. " + (err?.message || String(err)), "bad");
       } finally {
         elBtn.disabled = false;
       }
