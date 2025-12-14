@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>QR Generator</title>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: #0b1220; color: #e7ecf5; min-height: 100vh; display: grid; place-items: center;
+      padding: 24px;
+    }
+    .card {
+      width: min(520px, 100%);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+    }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    p { margin: 0 0 18px; opacity: 0.9; line-height: 1.4; }
+    .row { display: flex; gap: 10px; }
+    input {
+      flex: 1; padding: 12px 12px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(0,0,0,0.25); color: #e7ecf5;
+      outline: none;
+    }
+    input:focus { border-color: rgba(120,170,255,0.8); }
+    button {
+      padding: 12px 14px; border-radius: 12px; border: 0;
+      background: #2f6fff; color: white; font-weight: 700;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .65; cursor: not-allowed; }
+    .msg { margin-top: 14px; min-height: 22px; }
+    .msg.ok { color: #8ef0b1; }
+    .msg.bad { color: #ff9aa8; }
+    .qrwrap {
+      margin-top: 16px;
+      display: none;
+      background: white;
+      border-radius: 14px;
+      padding: 14px;
+      width: fit-content;
+    }
+    .small { margin-top: 10px; font-size: 12px; opacity: 0.75; }
+    .footer { margin-top: 14px; font-size: 12px; opacity: 0.7; }
+    a { color: #aecdff; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Generate QR</h1>
+    <p>Masukkan kode dari bot Telegram. Jika benar, QR akan muncul.</p>
+
+    <div class="row">
+      <input id="code" placeholder="Contoh: ABC123" autocomplete="one-time-code" />
+      <button id="btn">Cek</button>
+    </div>
+
+    <div id="msg" class="msg"></div>
+
+    <div id="qrwrap" class="qrwrap">
+      <canvas id="qrcanvas" width="240" height="240"></canvas>
+    </div>
+
+    <div class="small" id="hint"></div>
+
+    <div class="footer">
+      Admin mengubah kode via Telegram bot. Website ini hanya menampilkan QR jika backend menyatakan kode valid.
+    </div>
+  </div>
+
+  <!-- QR generator library (client-side) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+
+  <script>
+    // GANTI ini setelah backend Anda live:
+    const API_BASE = "https://YOUR-WORKER-OR-FUNCTION-DOMAIN";
+
+    const elCode = document.getElementById("code");
+    const elBtn  = document.getElementById("btn");
+    const elMsg  = document.getElementById("msg");
+    const elWrap = document.getElementById("qrwrap");
+    const elCanvas = document.getElementById("qrcanvas");
+    const elHint = document.getElementById("hint");
+
+    function setMsg(text, kind) {
+      elMsg.textContent = text || "";
+      elMsg.className = "msg" + (kind ? (" " + kind) : "");
+    }
+
+    function hideQR() {
+      elWrap.style.display = "none";
+      const ctx = elCanvas.getContext("2d");
+      ctx.clearRect(0, 0, elCanvas.width, elCanvas.height);
+    }
+
+    async function verifyAndRender() {
+      const code = (elCode.value || "").trim();
+      hideQR();
+      elHint.textContent = "";
+      if (!code) {
+        setMsg("Kode belum diisi.", "bad");
+        return;
+      }
+
+      elBtn.disabled = true;
+      setMsg("Memeriksa kode...", "");
+      try {
+        const res = await fetch(`${API_BASE}/api/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code })
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (!data.ok) {
+          setMsg('haha sorry boloo kodemu salah.', "bad");
+          return;
+        }
+
+        // data.qr berisi payload untuk di-encode menjadi QR
+        await QRCode.toCanvas(elCanvas, data.qr, { width: 240, margin: 2 });
+        elWrap.style.display = "block";
+        setMsg("Kode benar. QR berhasil dibuat.", "ok");
+
+        if (data.note) elHint.textContent = data.note;
+      } catch (err) {
+        setMsg("Gagal menghubungi server. Cek API_BASE dan deployment backend.", "bad");
+      } finally {
+        elBtn.disabled = false;
+      }
+    }
+
+    elBtn.addEventListener("click", verifyAndRender);
+    elCode.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") verifyAndRender();
+    });
+  </script>
+</body>
+</html>
