@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>QR Generator</title>
+  <title>QRIS Code Request</title>
   <style>
     :root { color-scheme: light; }
     body {
@@ -53,8 +53,8 @@
 </head>
 <body>
   <div class="card">
-    <h1>Generate QR</h1>
-    <p>Masukkan kode dari bot Telegram. Jika benar, QR akan muncul.</p>
+    <h1>Generate QRIS</h1>
+    <p>Masukkan kode</p>
 
     <div class="row">
       <input id="code" placeholder="Contoh: ABC123" autocomplete="one-time-code" />
@@ -70,7 +70,7 @@
     <div class="small" id="hint"></div>
 
     <div class="footer">
-      Admin mengubah kode via Telegram bot. Website ini hanya menampilkan QR jika backend menyatakan kode valid.
+      Admin punya kuasa.
     </div>
   </div>
 
@@ -79,7 +79,7 @@
 
   <script>
     // GANTI ini setelah backend Anda live:
-    const API_BASE = "https://YOUR-WORKER-OR-FUNCTION-DOMAIN";
+    const API_BASE = "https://qr-backend.qriscode.workers.dev";
 
     const elCode = document.getElementById("code");
     const elBtn  = document.getElementById("btn");
@@ -121,7 +121,7 @@
         const data = await res.json();
 
         if (!data.ok) {
-          setMsg('haha sorry boloo kodemu salah.', "bad");
+          setMsg('Haha sorry boloo kodemu salah.', "bad");
           return;
         }
 
@@ -132,7 +132,7 @@
 
         if (data.note) elHint.textContent = data.note;
       } catch (err) {
-        setMsg("Gagal menghubungi server. Cek API_BASE dan deployment backend.", "bad");
+        setMsg("Gagal menghubungi server.", "bad");
       } finally {
         elBtn.disabled = false;
       }
